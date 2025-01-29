@@ -7,7 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Bookings from "./pages/Bookings";
 import Cabins from "./pages/Cabins";
 import Account from "./pages/Account";
-import Login from "./pages/Login";
+// import Login from "./pages/Login";
 import PageNotFound from "./pages/PageNotFound";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -54,7 +54,7 @@ function App() {
               <Route path="settings" element={<Settings />}></Route>
               <Route path="users" element={<Users />}></Route>
             </Route>
-            <Route path="login" element={<Login />}></Route>
+            {/* <Route path="login" element={<Login />}></Route> */}
             <Route path="*" element={<PageNotFound />}></Route>
           </Routes>
         </BrowserRouter>
