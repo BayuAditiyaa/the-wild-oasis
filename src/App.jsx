@@ -7,7 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Bookings from "./pages/Bookings";
 import Cabins from "./pages/Cabins";
 import Account from "./pages/Account";
-// import Login from "./pages/Login";
+import Login from "./pages/Login";
 import PageNotFound from "./pages/PageNotFound";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -15,7 +15,7 @@ import GlobalStyles from "./styles/GlobalStyles";
 import AppLayout from "./ui/AppLayout";
 import Booking from "./pages/Booking";
 import Checkin from "./pages/Checkin";
-// import ProtectedRoute from "./ui/ProtectedRoute";
+import ProtectedRoute from "./ui/ProtectedRoute";
 import { DarkModeProvider } from "./context/DarkModeContext";
 
 const queryClient = new QueryClient({
@@ -36,9 +36,9 @@ function App() {
           <Routes>
             <Route
               element={
-                // <ProtectedRoute>
-                <AppLayout />
-                // </ProtectedRoute>
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
               }
             >
               <Route
@@ -54,7 +54,7 @@ function App() {
               <Route path="settings" element={<Settings />}></Route>
               <Route path="users" element={<Users />}></Route>
             </Route>
-            {/* <Route path="login" element={<Login />}></Route> */}
+            <Route path="login" element={<Login />}></Route>
             <Route path="*" element={<PageNotFound />}></Route>
           </Routes>
         </BrowserRouter>
