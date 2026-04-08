@@ -22,7 +22,7 @@ const StyledSelect = styled.select`
   box-shadow: var(--shadow-sm);
 `;
 
-export default function CreateBookingForm() {
+export default function CreateBookingForm({ onClose }) {
   const [wantsBreakfast, setWantsBreakfast] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const { data: cabins, isLoading } = useCabin();
@@ -38,19 +38,19 @@ export default function CreateBookingForm() {
   } = useForm();
 
   function onSubmit(data) {
-  const numNights = Number(data.numNights);
+    const numNights = Number(data.numNights);
     const numGuests = Number(data.numGuests);
 
     // 1. Temukan data kabin spesifik yang dipilih oleh user dari dropdown
     const reservedCabin = cabins.find((cabin) => cabin.id === Number(data.cabinId));
-    
+
     // 2. Kalkulasi Harga Kabin (Harga Normal - Diskon) * Jumlah Malam
     const cabinPrice = (reservedCabin.regularPrice - reservedCabin.discount) * numNights;
 
     // 3. Kalkulasi Harga Ekstra (Sarapan)
     // Jika user mencentang sarapan, hitung: harga sarapan * jumlah malam * jumlah tamu
     const extrasPrice = wantsBreakfast
-      ? settings.breakfastPrice * numNights * numGuests 
+      ? settings.breakfastPrice * numNights * numGuests
       : 0;
 
     // 4. Kalkulasi Total Keseluruhan
@@ -65,22 +65,27 @@ export default function CreateBookingForm() {
       numNights: numNights,
       numGuests: numGuests,
       observations: data.observations,
-      
+
       // Mengubah format checkbox (boolean)
       hasBreakfast: wantsBreakfast,
       isPaid: isPaid,
-      
+
       // Memasukkan hasil kalkulasi harga
       cabinPrice: cabinPrice,
       extrasPrice: extrasPrice,
       totalPrice: totalPrice,
-      
+
       // Status wajib saat booking baru dibuat
       status: "unconfirmed",
     };
 
     // 6. Kirim ke Supabase!
-    createBooking(bookingData);
+    createBooking(bookingData, {
+      onSuccess: () => {
+        // Tutup modal HANYA JIKA proses simpan ke database berhasil
+        onClose?.();
+      },
+    });
   }
 
   if (isLoading || isLoadingGuests || isLoadingSettings) return <Spinner />;
@@ -215,7 +220,12 @@ export default function CreateBookingForm() {
         <Button disabled={isCreating} type="submit" variation="primary">
           Submit
         </Button>
-        <Button disabled={isCreating} type="cancel" variation="secondary">
+        <Button
+          disabled={isCreating}
+          type="button"  /* <-- Harus "button" agar tidak men-submit form */
+          variation="secondary"
+          onClick={() => onClose?.()} /* <-- Jalankan penutup modal saat diklik */
+        >
           Cancel
         </Button>
       </FormRow>
