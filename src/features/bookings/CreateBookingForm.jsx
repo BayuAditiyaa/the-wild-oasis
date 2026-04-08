@@ -38,7 +38,49 @@ export default function CreateBookingForm() {
   } = useForm();
 
   function onSubmit(data) {
-    createBooking(data);
+  const numNights = Number(data.numNights);
+    const numGuests = Number(data.numGuests);
+
+    // 1. Temukan data kabin spesifik yang dipilih oleh user dari dropdown
+    const reservedCabin = cabins.find((cabin) => cabin.id === Number(data.cabinId));
+    
+    // 2. Kalkulasi Harga Kabin (Harga Normal - Diskon) * Jumlah Malam
+    const cabinPrice = (reservedCabin.regularPrice - reservedCabin.discount) * numNights;
+
+    // 3. Kalkulasi Harga Ekstra (Sarapan)
+    // Jika user mencentang sarapan, hitung: harga sarapan * jumlah malam * jumlah tamu
+    const extrasPrice = wantsBreakfast
+      ? settings.breakfastPrice * numNights * numGuests 
+      : 0;
+
+    // 4. Kalkulasi Total Keseluruhan
+    const totalPrice = cabinPrice + extrasPrice;
+
+    // 5. Susun data akhir yang 100% cocok dengan struktur tabel Supabase
+    const bookingData = {
+      guestId: Number(data.guestId),
+      cabinId: Number(data.cabinId),
+      startDate: data.startDate,
+      endDate: data.endDate,
+      numNights: numNights,
+      numGuests: numGuests,
+      observations: data.observations,
+      
+      // Mengubah format checkbox (boolean)
+      hasBreakfast: wantsBreakfast,
+      isPaid: isPaid,
+      
+      // Memasukkan hasil kalkulasi harga
+      cabinPrice: cabinPrice,
+      extrasPrice: extrasPrice,
+      totalPrice: totalPrice,
+      
+      // Status wajib saat booking baru dibuat
+      status: "unconfirmed",
+    };
+
+    // 6. Kirim ke Supabase!
+    createBooking(bookingData);
   }
 
   if (isLoading || isLoadingGuests || isLoadingSettings) return <Spinner />;
@@ -152,10 +194,9 @@ export default function CreateBookingForm() {
       <FormRow>
         <Checkbox
           disabled={isCreating}
-          value={wantsBreakfast}
-          id="breakfast"
+          checked={wantsBreakfast}
+          id="hasBreakfast"
           onChange={() => setWantsBreakfast((c) => !c)}
-          {...register("breakfast")}
         >
           I want breakfast with my booking
         </Checkbox>
@@ -163,10 +204,9 @@ export default function CreateBookingForm() {
       <FormRow>
         <Checkbox
           disabled={isCreating}
-          value={isPaid}
-          id="paid"
+          checker={isPaid}
+          id="isPaid"
           onChange={() => setIsPaid((c) => !c)}
-          {...register("paid")}
         >
           This booking is paid
         </Checkbox>
