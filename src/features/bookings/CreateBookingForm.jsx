@@ -11,7 +11,7 @@ import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { useGuests } from "./useGuests";
 import useSettings from "../settings/useSettings";
-import { isDate } from "date-fns";
+import { isDate, differenceInDays } from "date-fns";
 import { useCreateBooking } from "./useCreateBooking";
 
 const StyledSelect = styled.select`
@@ -37,198 +37,209 @@ export default function CreateBookingForm({ onClose }) {
     getValues,
   } = useForm();
 
+  const today = new Date().toISOString().split("T")[0];
+
   function onSubmit(data) {
-    const numNights = Number(data.numNights);
-    const numGuests = Number(data.numGuests);
+    // 1. HITUNG NUMNIGHTS SECARA OTOMATIS (Anti-Cheat!)
+    const numNights = differenceInDays(new Date(data.endDate), new Date(data.startDate));
 
-    // 1. Temukan data kabin spesifik yang dipilih oleh user dari dropdown
-    const reservedCabin = cabins.find((cabin) => cabin.id === Number(data.cabinId));
+    // Jika user entah bagaimana mengakali sistem dan memasukkan tanggal mundur
+    if (numNights < 1) {
+      alert("End date must be after Start date!");
+      return;}
+      const numGuests = Number(data.numGuests);
 
-    // 2. Kalkulasi Harga Kabin (Harga Normal - Diskon) * Jumlah Malam
-    const cabinPrice = (reservedCabin.regularPrice - reservedCabin.discount) * numNights;
+      // 1. Temukan data kabin spesifik yang dipilih oleh user dari dropdown
+      const reservedCabin = cabins.find((cabin) => cabin.id === Number(data.cabinId));
 
-    // 3. Kalkulasi Harga Ekstra (Sarapan)
-    // Jika user mencentang sarapan, hitung: harga sarapan * jumlah malam * jumlah tamu
-    const extrasPrice = wantsBreakfast
-      ? settings.breakfastPrice * numNights * numGuests
-      : 0;
+      // 2. Kalkulasi Harga Kabin (Harga Normal - Diskon) * Jumlah Malam
+      const cabinPrice = (reservedCabin.regularPrice - reservedCabin.discount) * numNights;
 
-    // 4. Kalkulasi Total Keseluruhan
-    const totalPrice = cabinPrice + extrasPrice;
+      // 3. Kalkulasi Harga Ekstra (Sarapan)
+      // Jika user mencentang sarapan, hitung: harga sarapan * jumlah malam * jumlah tamu
+      const extrasPrice = wantsBreakfast
+        ? settings.breakfastPrice * numNights * numGuests
+        : 0;
 
-    // 5. Susun data akhir yang 100% cocok dengan struktur tabel Supabase
-    const bookingData = {
-      guestId: Number(data.guestId),
-      cabinId: Number(data.cabinId),
-      startDate: data.startDate,
-      endDate: data.endDate,
-      numNights: numNights,
-      numGuests: numGuests,
-      observations: data.observations,
+      // 4. Kalkulasi Total Keseluruhan
+      const totalPrice = cabinPrice + extrasPrice;
 
-      // Mengubah format checkbox (boolean)
-      hasBreakfast: wantsBreakfast,
-      isPaid: isPaid,
+      // 5. Susun data akhir yang 100% cocok dengan struktur tabel Supabase
+      const bookingData = {
+        guestId: Number(data.guestId),
+        cabinId: Number(data.cabinId),
+        startDate: data.startDate,
+        endDate: data.endDate,
+        numNights: numNights,
+        numGuests: numGuests,
+        observations: data.observations,
 
-      // Memasukkan hasil kalkulasi harga
-      cabinPrice: cabinPrice,
-      extrasPrice: extrasPrice,
-      totalPrice: totalPrice,
+        // Mengubah format checkbox (boolean)
+        hasBreakfast: wantsBreakfast,
+        isPaid: isPaid,
 
-      // Status wajib saat booking baru dibuat
-      status: "unconfirmed",
-    };
+        // Memasukkan hasil kalkulasi harga
+        cabinPrice: cabinPrice,
+        extrasPrice: extrasPrice,
+        totalPrice: totalPrice,
 
-    // 6. Kirim ke Supabase!
-    createBooking(bookingData, {
-      onSuccess: () => {
-        // Tutup modal HANYA JIKA proses simpan ke database berhasil
-        onClose?.();
-      },
-    });
+        // Status wajib saat booking baru dibuat
+        status: "unconfirmed",
+      };
+
+      // 6. Kirim ke Supabase!
+      createBooking(bookingData, {
+        onSuccess: () => {
+          // Tutup modal HANYA JIKA proses simpan ke database berhasil
+          onClose?.();
+        },
+      });
+    }
+
+    if (isLoading || isLoadingGuests || isLoadingSettings) return <Spinner />;
+
+    return (
+      <Form onSubmit={handleSubmit(onSubmit)}>
+        <FormRow label="Select guest">
+          <StyledSelect
+            id="guestId"
+            {...register("guestId")}
+            disabled={isCreating}
+          >
+            {guests?.map((guest) => (
+              <option key={guest.id} value={guest.id}>
+                {guest.fullName}
+              </option>
+            ))}
+          </StyledSelect>
+        </FormRow>
+        <FormRow label="Start Date" error={errors?.startDate?.message}>
+          <Input
+            disabled={isCreating}
+            type="date"
+            id="startDate"
+            min={today}
+            {...register("startDate", {
+              required: {
+                message: "This field is required",
+              },
+            })}
+          />
+        </FormRow>
+        <FormRow label="End Date" error={errors?.endDate?.message}>
+          <Input
+            disabled={isCreating}
+            type="date"
+            id="endDate"
+            min={getValues().startDate || today}
+            {...register("endDate", {
+              required: "This field is required",
+             validate: (value) =>
+              new Date(value) > new Date(getValues().startDate) || 
+              "End date must be strictly after the start date",
+            })}
+          />
+        </FormRow>
+        {/* <FormRow label="Number of Nights" error={errors?.numNights?.message}>
+          <Input
+            disabled={isCreating}
+            type="number"
+            id="numNights"
+            min={1}
+            defaultValue={1}
+            {...register("numNights", {
+              required: {
+                message: "This field is required",
+              },
+            })}
+          />
+        </FormRow> */}
+        <FormRow label="Number of Guests" error={errors?.numGuests?.message}>
+          <Input
+            disabled={isCreating}
+            type="number"
+            id="numGuests"
+            min={1}
+            defaultValue={1}
+            {...register("numGuests", {
+              required: "This field is required",
+              min: {
+                value: 1,
+                message: "Minimum number of guests must be 1",
+              },
+              max: {
+                value: settings.maxGuestsPerBooking,
+                message: `Max number of guests must be ${settings.maxGuestsPerBooking}`,
+              },
+            })}
+          />
+        </FormRow>
+        <FormRow label="Select cabin" error={errors?.cabinId?.message}>
+          <StyledSelect
+            disabled={isCreating}
+            id="cabinId"
+            {...register("cabinId", {
+              required: {
+                message: "This field is required",
+              },
+            })}
+          >
+            {cabins.map((cabin) => (
+              <option key={cabin.id} value={cabin.id}>
+                Cabin : {cabin.name}
+                &nbsp; <p>Price : {formatCurrency(cabin.regularPrice)}</p>
+              </option>
+            ))}
+          </StyledSelect>
+        </FormRow>
+        <FormRow
+          label="Further observations"
+          error={errors?.observations?.message}
+        >
+          <Input
+            disabled={isCreating}
+            type="text"
+            id="observations"
+            {...register("observations", {
+              required: {
+                message: "This field is required",
+              },
+            })}
+          />
+        </FormRow>
+        <FormRow>
+          <Checkbox
+            disabled={isCreating}
+            checked={wantsBreakfast}
+            id="hasBreakfast"
+            onChange={() => setWantsBreakfast((c) => !c)}
+          >
+            I want breakfast with my booking
+          </Checkbox>
+        </FormRow>
+        <FormRow>
+          <Checkbox
+            disabled={isCreating}
+            checker={isPaid}
+            id="isPaid"
+            onChange={() => setIsPaid((c) => !c)}
+          >
+            This booking is paid
+          </Checkbox>
+        </FormRow>
+        <FormRow>
+          <Button disabled={isCreating} type="submit" variation="primary">
+            Submit
+          </Button>
+          <Button
+            disabled={isCreating}
+            type="button"  /* <-- Harus "button" agar tidak men-submit form */
+            variation="secondary"
+            onClick={() => onClose?.()} /* <-- Jalankan penutup modal saat diklik */
+          >
+            Cancel
+          </Button>
+        </FormRow>
+      </Form>
+    );
   }
-
-  if (isLoading || isLoadingGuests || isLoadingSettings) return <Spinner />;
-
-  return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
-      <FormRow label="Select guest">
-        <StyledSelect
-          id="guestId"
-          {...register("guestId")}
-          disabled={isCreating}
-        >
-          {guests?.map((guest) => (
-            <option key={guest.id} value={guest.id}>
-              {guest.fullName}
-            </option>
-          ))}
-        </StyledSelect>
-      </FormRow>
-      <FormRow label="Start Date" error={errors?.startDate?.message}>
-        <Input
-          disabled={isCreating}
-          type="date"
-          id="startDate"
-          {...register("startDate", {
-            required: {
-              message: "This field is required",
-            },
-          })}
-        />
-      </FormRow>
-      <FormRow label="End Date" error={errors?.endDate?.message}>
-        <Input
-          disabled={isCreating}
-          type="date"
-          id="endDate"
-          {...register("endDate", {
-            required: "This field is required",
-            validate:
-              isDate(getValues().endDate) || "You must choose a valid date",
-          })}
-        />
-      </FormRow>
-      <FormRow label="Number of Nights" error={errors?.numNights?.message}>
-        <Input
-          disabled={isCreating}
-          type="number"
-          id="numNights"
-          min={1}
-          defaultValue={1}
-          {...register("numNights", {
-            required: {
-              message: "This field is required",
-            },
-          })}
-        />
-      </FormRow>
-      <FormRow label="Number of Guests" error={errors?.numGuests?.message}>
-        <Input
-          disabled={isCreating}
-          type="number"
-          id="numGuests"
-          min={1}
-          defaultValue={1}
-          {...register("numGuests", {
-            required: "This field is required",
-            min: {
-              value: 1,
-              message: "Minimum number of guests must be 1",
-            },
-            max: {
-              value: settings.maxGuestsPerBooking,
-              message: `Max number of guests must be ${settings.maxGuestsPerBooking}`,
-            },
-          })}
-        />
-      </FormRow>
-      <FormRow label="Select cabin" error={errors?.cabinId?.message}>
-        <StyledSelect
-          disabled={isCreating}
-          id="cabinId"
-          {...register("cabinId", {
-            required: {
-              message: "This field is required",
-            },
-          })}
-        >
-          {cabins.map((cabin) => (
-            <option key={cabin.id} value={cabin.id}>
-              Cabin : {cabin.name}
-              &nbsp; <p>Price : {formatCurrency(cabin.regularPrice)}</p>
-            </option>
-          ))}
-        </StyledSelect>
-      </FormRow>
-      <FormRow
-        label="Further observations"
-        error={errors?.observations?.message}
-      >
-        <Input
-          disabled={isCreating}
-          type="text"
-          id="observations"
-          {...register("observations", {
-            required: {
-              message: "This field is required",
-            },
-          })}
-        />
-      </FormRow>
-      <FormRow>
-        <Checkbox
-          disabled={isCreating}
-          checked={wantsBreakfast}
-          id="hasBreakfast"
-          onChange={() => setWantsBreakfast((c) => !c)}
-        >
-          I want breakfast with my booking
-        </Checkbox>
-      </FormRow>
-      <FormRow>
-        <Checkbox
-          disabled={isCreating}
-          checker={isPaid}
-          id="isPaid"
-          onChange={() => setIsPaid((c) => !c)}
-        >
-          This booking is paid
-        </Checkbox>
-      </FormRow>
-      <FormRow>
-        <Button disabled={isCreating} type="submit" variation="primary">
-          Submit
-        </Button>
-        <Button
-          disabled={isCreating}
-          type="button"  /* <-- Harus "button" agar tidak men-submit form */
-          variation="secondary"
-          onClick={() => onClose?.()} /* <-- Jalankan penutup modal saat diklik */
-        >
-          Cancel
-        </Button>
-      </FormRow>
-    </Form>
-  );
-}

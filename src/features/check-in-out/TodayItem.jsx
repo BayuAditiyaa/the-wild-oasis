@@ -33,7 +33,7 @@ export default function TodayItem({ activity }) {
       {status === "checked-in" && <Tag type="blue">Departing</Tag>}
 
       <Flag
-        src={guests.countryFlag}
+        src={guests?.countryFlag}
         alt={`Flag of ${guests.nationality}`}
       ></Flag>
       <Guest>{guests.fullName}</Guest>
