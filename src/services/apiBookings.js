@@ -130,7 +130,7 @@ export async function deleteBooking(id) {
 
 export async function newBooking(newBooking) {
   const { data, error } = await supabase
-    .from("bookings")
+    .from("booking")
     .insert([{ ...newBooking }])
     .select();
 

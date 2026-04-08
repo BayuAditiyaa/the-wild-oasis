@@ -69,7 +69,6 @@ function BookingRow({
   const { checkout, isCheckingOut } = useCheckout();
   const { isDeleting, deletingBooking } = useDeleteBooking();
   const navigate = useNavigate();
-  console.log(bookingId);
 
   return (
     <Table.Row>
